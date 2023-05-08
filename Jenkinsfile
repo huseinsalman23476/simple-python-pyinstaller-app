@@ -1,5 +1,6 @@
 node {
     stage('Build') {
+        checkout scm
         docker.image('python:2-alpine').inside {
             sh 'python -m py_compile sources/add2vals.py sources/calc.py'
 	        stash(name: 'compiled-results', includes: 'sources/*.py*')
@@ -15,7 +16,10 @@ node {
             junit 'test-reports/results.xml'
         }	    
     }
-    stage('Deliver') {
+    stage('Manual Approval') {
+        input message: 'Lanjutkan ke tahap Deploy? (Click "Proceed" or "Abort")'
+    }
+    stage('Deploy') {
         withEnv(['VOLUME="$(pwd)/sources:/src"',
                 'IMAGE="cdrx/pyinstaller-linux:python2"']) {    
             try {
@@ -28,7 +32,9 @@ node {
                 if (currentBuild.result == 'SUCCESS') {
                     archiveArtifacts "${env.BUILD_ID}/sources/dist/add2vals" 
                     sh "docker run --rm -v ${VOLUME} ${IMAGE} 'rm -rf build dist'"
-                }		    
+                }
+                sleep(time: 1, unit: "MINUTES")
+                echo "Eksekusi pipeline sukses"		    
             }
         }
     }
